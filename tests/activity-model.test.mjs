@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mergeReport,validateReport,freshness} from '../lib/activity-model.mjs';
+import {mergeReport,validateReport,freshness,displayStatus} from '../lib/activity-model.mjs';
 const input={id:'test-task',title:'공고 확인',status:'working',summary:'공고와 캘린더를 비교했습니다.',nextStep:'시간 차이 확인'};
 test('upserts are idempotent and preserve earlier history',()=>{
  const first=mergeReport(null,input,'dots','2026-10-13T09:00:00Z');
@@ -31,4 +31,10 @@ test('schedules preserve original recurrence and refuse unknown timezones or inv
  assert.throws(()=>validateReport({...input,timezone:'Mars/City'}));
  assert.throws(()=>validateReport({...input,nextRunAt:'2026-10-14T09:00:00'}));
  assert.equal(mergeReport(schedule,{id:input.id,scheduleEnabled:false},'dots').scheduleEnabled,false);
+});
+
+test('disabled recurring jobs display as paused without changing regular task status',()=>{
+ assert.equal(displayStatus({kind:'schedule',status:'watching',scheduleEnabled:false}),'paused');
+ assert.equal(displayStatus({kind:'task',status:'working',scheduleEnabled:false}),'working');
+ assert.equal(freshness({kind:'schedule',status:'working',scheduleEnabled:false,updatedAt:'2020-01-01T00:00:00Z'}),'');
 });
