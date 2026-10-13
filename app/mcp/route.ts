@@ -8,12 +8,18 @@ const taskSchema = {type:'object',additionalProperties:false,required:['id'],pro
   summary:{type:'string',maxLength:2000,description:'What actually happened, not a plan or guessed percentage.'},
   nextStep:{type:'string',maxLength:2000},waitingFor:{type:'string',maxLength:2000,description:'Required for waiting: the exact decision or dependency needed.'},
   sourceUrl:{type:'string',maxLength:2000},resultUrl:{type:'string',maxLength:2000},nextCheckAt:{type:'string',description:'ISO 8601 next check time, including timezone. Empty if unknown.'},
+  kind:{type:'string',enum:['task','schedule'],description:'Use schedule for saved recurring jobs, including existing cron jobs.'},
+  schedule:{type:'string',maxLength:2000,description:'Exact saved cron, RRULE or human-readable recurrence. Reporting this does not create a schedule.'},
+  timezone:{type:'string',description:'Saved IANA timezone, such as Asia/Seoul. Required for schedule records.'},
+  nextRunAt:{type:'string',description:'Next scheduled execution time, ISO 8601 including timezone. Empty if not available; do not calculate or guess.'},
+  lastRunAt:{type:'string',description:'Last actual execution time, ISO 8601 including timezone. Empty if not available.'},
+  scheduleEnabled:{type:'boolean',description:'Actual saved schedule enabled flag.'}, sourceScheduleId:{type:'string',description:'Original schedule ID, for reconciling future updates.'},
   archived:{type:'boolean'}, expectedRevision:{type:'integer',minimum:0}
 }};
 const tools = [
-  {name:'list_activity',description:'Read Paro’s reported progress, next actions, waits and results. Records are self-reported and may be stale; this is not a live execution probe.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true}},
+  {name:'list_activity',description:'Read Dots’s reported progress, next actions, waits and results. Records are self-reported and may be stale; this is not a live execution probe.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true}},
   {name:'get_activity',description:'Read one reported activity and its recent history.',inputSchema:{type:'object',properties:{id:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,80}$'}},required:['id'],additionalProperties:false},annotations:{readOnlyHint:true}},
-  {name:'report_activity',description:'Record Dots progress on the owner-private Paro board. Report when work starts, changes, waits, finishes or is paused. Reuse the same ID for the same outcome. Working means execution actually began; planned means it has not. Never claim an action succeeded without evidence. Store a concrete next step and waiting reason; add result links on completion. This does not start, stop or schedule any work.',inputSchema:taskSchema,annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true}}
+  {name:'report_activity',description:'Record Dots progress on the owner-private Dots board. Report when work starts, changes, waits, finishes or is paused. Reuse the same ID for the same outcome. Working means execution actually began; planned means it has not. Never claim an action succeeded without evidence. Store a concrete next step and waiting reason; add result links on completion. Also report existing saved recurring schedules with kind=schedule, the exact schedule expression, timezone, enabled flag and known next/last run times. Never recreate, enable or cancel a schedule just to report it. This does not start, stop or schedule any work.',inputSchema:taskSchema,annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true}}
 ];
 export async function POST(request: Request) {
   // Sites authenticates this owner-private MCP endpoint, including service callers.
@@ -28,7 +34,7 @@ export async function POST(request: Request) {
   if (!rpc || rpc.jsonrpc !== '2.0' || typeof rpc.method !== 'string') return fail(-32600,'Invalid request');
   if (rpc.id === undefined && rpc.method.startsWith('notifications/')) return new Response(null,{status:202});
   if(rpc.id === undefined)return fail(-32600,'Request ID is required');
-  if(rpc.method==='initialize')return respond({protocolVersion:'2025-03-26',capabilities:{tools:{listChanged:false}},serverInfo:{name:'paro-progress',version:'1.0.0'},instructions:'Progress journal for one owner. Records are reports, not proof of active execution. Keep it current when work state changes.'});
+  if(rpc.method==='initialize')return respond({protocolVersion:'2025-03-26',capabilities:{tools:{listChanged:false}},serverInfo:{name:'openai-dots-progress-board',version:'1.0.0'},instructions:'Progress journal for one owner. Records are reports, not proof of active execution. Keep it current when work state changes.'});
   if(rpc.method==='ping')return respond({});
   if(rpc.method==='tools/list')return respond({tools});
   if(rpc.method!=='tools/call')return fail(-32601,'Method not found');

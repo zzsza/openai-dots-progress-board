@@ -22,3 +22,13 @@ test('only flags running reports that are stale and overdue scheduled checks',()
  assert.equal(freshness({...task,status:'waiting'},Date.parse('2026-10-13T09:31:00Z')),'');
  assert.equal(freshness({...task,status:'watching',nextCheckAt:'2026-10-13T09:10:00Z'},Date.parse('2026-10-13T09:31:00Z')),'확인 예정 시각 지남');
 });
+test('schedules preserve original recurrence and refuse unknown timezones or invented dates',()=>{
+ const schedule=mergeReport(null,{...input,kind:'schedule',status:'watching',schedule:'0 9 * * 1-5',timezone:'Asia/Seoul',scheduleEnabled:true,nextRunAt:'2026-10-14T09:00:00+09:00',sourceScheduleId:'original-job'},'dots');
+ assert.equal(schedule.sourceScheduleId,'original-job');
+ assert.equal(freshness(schedule,Date.parse('2026-10-14T09:01:00+09:00')),'실행 예정 시각 지남');
+ assert.equal(freshness({...schedule,scheduleEnabled:false},Date.parse('2026-10-14T09:01:00+09:00')),'');
+ assert.throws(()=>mergeReport(null,{...input,kind:'schedule',schedule:'',timezone:'Asia/Seoul'},'dots'));
+ assert.throws(()=>validateReport({...input,timezone:'Mars/City'}));
+ assert.throws(()=>validateReport({...input,nextRunAt:'2026-10-14T09:00:00'}));
+ assert.equal(mergeReport(schedule,{id:input.id,scheduleEnabled:false},'dots').scheduleEnabled,false);
+});
