@@ -8,8 +8,6 @@ OpenAI Dots와 대화하면서 맡긴 일의 진행상황과 반복 예약을 �
 
 ![진행상황 보드 예시](docs/screenshots/progress-board.png)
 
-![반복 예약 화면 예시](docs/screenshots/schedules.png)
-
 ## 볼 수 있는 내용
 
 - 지금 하는 일, 마지막으로 한 일, 다음 행동과 결과
